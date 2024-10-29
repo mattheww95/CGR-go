@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "./";
+
+message CGR {
+	string name = 1;
+    bytes Cgr = 2;
+	uint64 Size = 3;
+}
