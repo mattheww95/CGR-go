@@ -5,7 +5,6 @@ import (
 	"os"
 	"bufio"
 	"strings"
-	"fmt"
 )
 
 // TODO need to make the sequence a byte array
@@ -49,7 +48,6 @@ func ReadFasta(FileIn string) []*Fasta {
 			headerFound = true
 		}
 	}
-	fmt.Println(sequences[0])
 
 	if err := s.Err(); err != nil {
 		panic(err)
