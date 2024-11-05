@@ -9,12 +9,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"path"
 	"github.com/integrii/flaggy"
+	"path/filepath"
 )
 
 
-func MakeDir(name string) string {
+func MakeDir(name string, dir_name string) string {
 
-	output_path := path.Join(name, "cgr");
+	output_path := path.Join(name, dir_name);
 	stat, err := os.Stat(output_path)
 	if err == nil && stat.IsDir() {
 		return output_path
@@ -51,10 +52,33 @@ func WriteProtoBuff(output_obj *CGR, output_dir string){
 
 }
 
+
+func ReadProtoBuffers(directory string) []*CGR {
+	// Once better established this can be replaced with a generator
+	input_expr := path.Join(directory, "*.pb")
+	matches, err := filepath.Glob(input_expr)
+	if err != nil {
+		panic(err)
+	}
+	cgr_values := make([]*CGR, len(matches))
+	for idx, match := range matches {
+		input_bytes, err := os.ReadFile(match)
+		if err != nil {
+			panic(err)
+		}
+		new_cgr := &CGR{}
+		err = proto.Unmarshal(input_bytes, new_cgr)
+		cgr_values[idx] = new_cgr
+	}
+	return cgr_values
+}
+
 var INPUT_FASTAS string = ""
 var OUTPUT_DIRECTORY string = ""
+var READ_IN_CGR_DIR string = ""
 var CGR_SIZE uint64 = 1024
 var create_cgr *flaggy.Subcommand
+var read_cgrs *flaggy.Subcommand
 
 const version string = "0.0.1"
 
@@ -70,11 +94,16 @@ func cli(){
 	cgr_size_help := fmt.Sprintf("The cgr map size to create: %d", CGR_SIZE)
 	create_cgr.UInt64(&CGR_SIZE, "c", "cgr-size", cgr_size_help)
 
+	read_cgrs = flaggy.NewSubcommand("image")
+	read_cgrs.Description = "Create png images from pre-computed cgr objects"
+	read_cgrs.String(&READ_IN_CGR_DIR, "i", "input", "A directory of pre-computed cgr representations.")
+	read_cgrs.String(&OUTPUT_DIRECTORY, "o", "output-directory", "The output directory for created images.")
 
 	flaggy.AttachSubcommand(create_cgr, 1)
+	flaggy.AttachSubcommand(read_cgrs, 1)
 	flaggy.Parse()
-
 }
+
 
 func main(){
 	cli()
@@ -101,7 +130,7 @@ func main(){
 		x := rand.Uint64() % cgr_size
 		y := rand.Uint64() % cgr_size
 		slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
-		output_path := MakeDir(OUTPUT_DIRECTORY)
+		output_path := MakeDir(OUTPUT_DIRECTORY, "cgr")
 		for _, f := range fastas {
 			i := *f
 			cgr_map := CreateCGRMap(cgr_size)
@@ -112,7 +141,6 @@ func main(){
 				cgr_map.AddPoint(x, y)
 				slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
 			}
-
 			output_obj := &CGR{
 				Name: i.Header,
 				Cgr: cgr_map.Data,
@@ -120,6 +148,27 @@ func main(){
 			}
 
 			WriteProtoBuff(output_obj, output_path)
+		}
+	}
+
+	if read_cgrs.Used {
+		if  READ_IN_CGR_DIR == "" {
+			slog.Error("No input directory passed.")
+			os.Exit(-1)
+		}
+
+		if OUTPUT_DIRECTORY == "" {
+			var err error
+			OUTPUT_DIRECTORY, err = os.Getwd()
+			if err != nil {
+				slog.Error("Could not get current directory", slog.Any("err", err))
+			}
+		}
+		output_path := MakeDir(OUTPUT_DIRECTORY, "png")
+
+		old_cgrs := ReadProtoBuffers(READ_IN_CGR_DIR)
+		for _, i := range old_cgrs {
+			WriteImage(i, output_path)
 		}
 	}
 }
