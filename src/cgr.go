@@ -52,6 +52,71 @@ func WriteProtoBuff(output_obj *CGR, output_dir string){
 
 }
 
+// Split one fastas into multiple cgr files
+func SplitFastaToCGR(x, y, cgr_size uint64, output_path string, fastas *[]*Fasta){
+	for _, f := range (*fastas) {
+		i := *f
+		cgr_map := CreateCGRMap(cgr_size)
+		cgr_map.AddPoint(x, y)
+		for _, nuc := range i.Sequence {
+			slog.Debug("Points",slog.Any("Nuc", nuc), slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
+			x, y = cgr_map.NextPoint(x, y, nuc)
+			cgr_map.AddPoint(x, y)
+			slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
+		}
+		output_obj := &CGR{
+			Name: i.Header,
+			Cgr: cgr_map.Data,
+			Size: cgr_map.Size,
+		}
+
+		WriteProtoBuff(output_obj, output_path)
+	}
+}
+
+// Convert all sequences in a fasta into its cgr representation
+func MFAToCGR(x, y, cgr_size uint64, output_name string, output_path string, fastas *[]*Fasta){
+
+	cgr_map := CreateCGRMap(cgr_size)
+	for _, f := range (*fastas) {
+		i := *f
+		cgr_map.AddPoint(x, y)
+		for _, nuc := range i.Sequence {
+			slog.Debug("Points",slog.Any("Nuc", nuc), slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
+			x, y = cgr_map.NextPoint(x, y, nuc)
+			cgr_map.AddPoint(x, y)
+			slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
+		}
+
+	}
+
+	output_obj := &CGR{
+		Name: output_name,
+		Cgr: cgr_map.Data,
+		Size: cgr_map.Size,
+	}
+	WriteProtoBuff(output_obj, output_path)
+}
+
+/// Convert an input multi fasta in a collection of cgr files, one per a sequence
+func FastaToCGR(input string, output_dir string, cgr_size uint64, split bool){
+
+	fastas := ReadFasta(input)
+	rand.Seed(42)
+	x := rand.Uint64() % cgr_size
+	y := rand.Uint64() % cgr_size
+	slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
+	output_path := MakeDir(output_dir, "cgr")
+	if(split){
+		SplitFastaToCGR(x, y, cgr_size, output_path, &fastas)
+	}else{
+		output_base := filepath.Base(input)
+		seperated_name := strings.Split(output_base, ".")
+		MFAToCGR(x, y, cgr_size, seperated_name[0], output_path, &fastas)
+	}
+}
+
+
 
 func ReadProtoBuffers(directory string) []*CGR {
 	// Once better established this can be replaced with a generator
@@ -76,6 +141,7 @@ func ReadProtoBuffers(directory string) []*CGR {
 var INPUT_FASTAS string = ""
 var OUTPUT_DIRECTORY string = ""
 var READ_IN_CGR_DIR string = ""
+var SPLIT_FASTA bool = false
 var CGR_SIZE uint64 = 1024
 var create_cgr *flaggy.Subcommand
 var read_cgrs *flaggy.Subcommand
@@ -88,8 +154,9 @@ func cli(){
 	flaggy.ShowHelpOnUnexpectedEnable()
 
 	create_cgr = flaggy.NewSubcommand("create")
-	create_cgr.Description = "Compute a CGR for all sequences in a multi-fasta"
+	create_cgr.Description = "Compute a CGR for all a fasta sequences"
 	create_cgr.String(&INPUT_FASTAS, "i", "input", "A multifasta file to use for CGR computation")
+	create_cgr.Bool(&SPLIT_FASTA, "s", "split", "Generate CGR for individual sequences of file input.")
 	create_cgr.String(&OUTPUT_DIRECTORY, "o", "output-directory", "The output directory for computed CGR files.")
 	cgr_size_help := fmt.Sprintf("The cgr map size to create: %d", CGR_SIZE)
 	create_cgr.UInt64(&CGR_SIZE, "c", "cgr-size", cgr_size_help)
@@ -123,38 +190,12 @@ func main(){
 				slog.Error("Could not get current directory", slog.Any("err", err))
 			}
 		}
-
-		fastas := ReadFasta(INPUT_FASTAS)
-		var cgr_size uint64 = CGR_SIZE
-		rand.Seed(42)
-		x := rand.Uint64() % cgr_size
-		y := rand.Uint64() % cgr_size
-		slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
-		output_path := MakeDir(OUTPUT_DIRECTORY, "cgr")
-		for _, f := range fastas {
-			i := *f
-			cgr_map := CreateCGRMap(cgr_size)
-			cgr_map.AddPoint(x, y)
-			for _, nuc := range i.Sequence {
-				slog.Debug("Points",slog.Any("Nuc", nuc), slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
-				x, y = cgr_map.NextPoint(x, y, nuc)
-				cgr_map.AddPoint(x, y)
-				slog.Debug("Points", slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
-			}
-			output_obj := &CGR{
-				Name: i.Header,
-				Cgr: cgr_map.Data,
-				Size: cgr_map.Size,
-			}
-
-			WriteProtoBuff(output_obj, output_path)
-		}
+		FastaToCGR(INPUT_FASTAS, OUTPUT_DIRECTORY, CGR_SIZE, SPLIT_FASTA)
 	}
 
 	if read_cgrs.Used {
 		if  READ_IN_CGR_DIR == "" {
-			slog.Error("No input directory passed.")
-			os.Exit(-1)
+			flaggy.ShowHelpAndExit("No input directory passed.")
 		}
 
 		if OUTPUT_DIRECTORY == "" {
