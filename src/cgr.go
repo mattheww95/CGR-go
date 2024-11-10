@@ -56,6 +56,7 @@ func WriteProtoBuff(output_obj *CGR, output_dir string){
 func SplitFastaToCGR(x, y, cgr_size uint64, output_path string, fastas *[]*Fasta){
 	for _, f := range (*fastas) {
 		i := *f
+		slog.Info( fmt.Sprintf("Creating CGR for %s", i.Header))
 		cgr_map := CreateCGRMap(cgr_size)
 		cgr_map.AddPoint(x, y)
 		for _, nuc := range i.Sequence {
@@ -76,7 +77,7 @@ func SplitFastaToCGR(x, y, cgr_size uint64, output_path string, fastas *[]*Fasta
 
 // Convert all sequences in a fasta into its cgr representation
 func MFAToCGR(x, y, cgr_size uint64, output_name string, output_path string, fastas *[]*Fasta){
-
+	slog.Info( fmt.Sprintf("Creating CGR for %s", output_name))
 	cgr_map := CreateCGRMap(cgr_size)
 	for _, f := range (*fastas) {
 		i := *f
