@@ -205,6 +205,9 @@ func main(){
 			if err != nil {
 				slog.Error("Could not get current directory", slog.Any("err", err))
 			}
+			if stat, _ := os.Stat(OUTPUT_DIRECTORY); !stat.IsDir(){
+				flaggy.ShowHelpAndExit("Output directory passed is not a directory")
+			}
 		}
 		output_path := MakeDir(OUTPUT_DIRECTORY, "png")
 
