@@ -48,6 +48,10 @@ func ReadFasta(FileIn string) []*Fasta {
 			headerFound = true
 		}
 	}
+	if headerFound {
+			record := &Fasta{Header: header, Sequence: strings.Join(sequence[:], "")}
+			sequences = append(sequences, record)
+	}
 
 	if err := s.Err(); err != nil {
 		panic(err)

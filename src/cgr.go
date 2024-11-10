@@ -56,7 +56,8 @@ func WriteProtoBuff(output_obj *CGR, output_dir string){
 func SplitFastaToCGR(x, y, cgr_size uint64, output_path string, fastas *[]*Fasta){
 	for _, f := range (*fastas) {
 		i := *f
-		slog.Info( fmt.Sprintf("Creating CGR for %s", i.Header))
+		slog.Debug("Fasta sequence", slog.String("Header", i.Header), slog.String("Sequence", i.Sequence))
+		slog.Info(fmt.Sprintf("Creating CGR for %s", i.Header))
 		cgr_map := CreateCGRMap(cgr_size)
 		cgr_map.AddPoint(x, y)
 		for _, nuc := range i.Sequence {
@@ -77,10 +78,11 @@ func SplitFastaToCGR(x, y, cgr_size uint64, output_path string, fastas *[]*Fasta
 
 // Convert all sequences in a fasta into its cgr representation
 func MFAToCGR(x, y, cgr_size uint64, output_name string, output_path string, fastas *[]*Fasta){
-	slog.Info( fmt.Sprintf("Creating CGR for %s", output_name))
 	cgr_map := CreateCGRMap(cgr_size)
 	for _, f := range (*fastas) {
 		i := *f
+		slog.Debug("Fasta sequence", slog.String("Header", i.Header), slog.String("Sequence", i.Sequence))
+		slog.Info(fmt.Sprintf("Creating CGR for %s", i.Header))
 		cgr_map.AddPoint(x, y)
 		for _, nuc := range i.Sequence {
 			slog.Debug("Points",slog.Any("Nuc", nuc), slog.Uint64("x", uint64(x)), slog.Uint64("y", uint64(y)))
@@ -146,6 +148,7 @@ var SPLIT_FASTA bool = false
 var CGR_SIZE uint64 = 1024
 var create_cgr *flaggy.Subcommand
 var read_cgrs *flaggy.Subcommand
+var random *flaggy.Subcommand
 
 const version string = "0.0.1"
 
@@ -167,8 +170,14 @@ func cli(){
 	read_cgrs.String(&READ_IN_CGR_DIR, "i", "input", "A directory of pre-computed cgr representations.")
 	read_cgrs.String(&OUTPUT_DIRECTORY, "o", "output-directory", "The output directory for created images.")
 
+
+	random = flaggy.NewSubcommand("random")
+	random.Description = "Create a sequence of a random length. Writs to stdout"
+	random.UInt64(&CGR_SIZE, "c", "sequence-size", "Specify the length of a random sequence to write.")
+
 	flaggy.AttachSubcommand(create_cgr, 1)
 	flaggy.AttachSubcommand(read_cgrs, 1)
+	flaggy.AttachSubcommand(random, 1)
 	flaggy.Parse()
 }
 
@@ -192,9 +201,7 @@ func main(){
 			}
 		}
 		FastaToCGR(INPUT_FASTAS, OUTPUT_DIRECTORY, CGR_SIZE, SPLIT_FASTA)
-	}
-
-	if read_cgrs.Used {
+	}else if read_cgrs.Used {
 		if  READ_IN_CGR_DIR == "" {
 			flaggy.ShowHelpAndExit("No input directory passed.")
 		}
@@ -215,5 +222,9 @@ func main(){
 		for _, i := range old_cgrs {
 			WriteImage(i, output_path)
 		}
+	}else if random.Used {
+		CreateRandomSequence(CGR_SIZE)
+	}else{
+		flaggy.ShowHelpAndExit("Command not recognized.")
 	}
 }

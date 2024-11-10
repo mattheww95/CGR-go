@@ -49,28 +49,16 @@ func (m *CGRMap) NextPoint(previous_x uint64, previous_y uint64, nucleotide rune
 	var new_y uint64
 	slog.Debug("Adding nucleotied", slog.Any("new nuc", nucleotide))
 	switch(nucleotide){
-		case 'a':
+		case 'a', 'A':
 		new_x = previous_x - (previous_x >> 1)
 		new_y = previous_y + ((m.A.Y - previous_y) >> 1)
-		case 'A':
-		new_x = previous_x - (previous_x >> 1)
-		new_y = previous_y + ((m.A.Y - previous_y) >> 1)
-		case 't':
+		case 't', 'T':
 		new_x = previous_x + ((m.T.X - previous_x) >> 1)
 		new_y = previous_y - (previous_y >> 1)
-		case 'T':
-		new_x = previous_x + ((m.T.X - previous_x) >> 1)
-		new_y = previous_y - (previous_y >> 1)
-		case 'g':
+		case 'g', 'G':
 		new_x = previous_x - (previous_x >> 1)
 		new_y = previous_y - (previous_y >> 1)
-		case 'G':
-		new_x = previous_x - (previous_x >> 1)
-		new_y = previous_y - (previous_y >> 1)
-		case 'c':
-		new_x = previous_x + ((m.C.X - previous_x) >> 1)
-		new_y = previous_y + ((m.C.Y - previous_y) >> 1)
-		case 'C':
+		case 'c', 'C':
 		new_x = previous_x + ((m.C.X - previous_x) >> 1)
 		new_y = previous_y + ((m.C.Y - previous_y) >> 1)
 		default:
