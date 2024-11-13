@@ -1,5 +1,7 @@
 package main
 
+// TODO add in GCR representation
+
 import (
 	"os"
 	"fmt"
