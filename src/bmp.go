@@ -21,6 +21,7 @@ type CGRMap struct {
 	G Boundry
 }
 
+
 /// Create a new CGRMap object of the specified size
 func CreateCGRMap(size uint64) CGRMap {
 	map_size := size * size
